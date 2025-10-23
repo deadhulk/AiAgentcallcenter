@@ -1,31 +1,16 @@
-from gtts import gTTS
-import tempfile
-import os
+from typing import Any
+from .adapters import get_tts_adapter
+
 
 class TTSEngine:
+    """Wrapper that delegates to a pluggable TTS adapter chosen by env var."""
     def __init__(self):
-        self.language = 'en'
+        self.adapter = get_tts_adapter()
 
     def text_to_speech(self, text: str) -> str:
-        """
-        Convert text to speech and save as temporary audio file
-        Returns the path to the generated audio file
-        """
-        tts = gTTS(text=text, lang=self.language, slow=False)
-        
-        # Create temporary file
-        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.mp3')
-        temp_file_path = temp_file.name
-        temp_file.close()
-        
-        # Save the speech to the temporary file
-        tts.save(temp_file_path)
-        
-        return temp_file_path
+        return self.adapter.synthesize(text)
 
     def cleanup_audio_file(self, file_path: str):
-        """
-        Remove temporary audio file
-        """
+        import os
         if os.path.exists(file_path):
             os.remove(file_path)

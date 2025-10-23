@@ -1,0 +1,22 @@
+<include>
+  <context name="default">
+    <!-- Handle incoming calls by creating a LiveKit room and bridging -->
+    <extension name="livekit-bridge">
+      <condition field="destination_number" expression="^.*$">
+        <!-- Answer and wait for ESL to control call flow -->
+        <action application="answer"/>
+        
+        <!-- Pass control to ESL -->
+        <action application="set" data="hangup_after_bridge=true"/>
+        <action application="set" data="bridge_pre_execute_bleg_app=export"/>
+        <action application="set" data="bridge_pre_execute_bleg_data=nolocal:execute_on_answer=uuid_broadcast ${uuid} start"/>
+        
+        <!-- Notify app about incoming call -->
+        <action application="system" data="curl -s -X POST -H 'Content-Type: application/json' -d '{\"caller\":\"${caller_id_number}\",\"destination\":\"${destination_number}\",\"uuid\":\"${uuid}\"}' http://app:8000/api/orchestration/emit/call.incoming >/dev/null 2>&1 &"/>
+        
+        <!-- Hold with MOH until ESL bridges to WebRTC -->
+        <action application="playback" data="local_stream://moh"/>
+      </condition>
+    </extension>
+  </context>
+</include>

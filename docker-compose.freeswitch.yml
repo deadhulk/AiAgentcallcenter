@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  freeswitch:
+    build:
+      context: ./deploy/freeswitch
+    container_name: freeswitch
+    restart: unless-stopped
+    ports:
+      - "5060:5060/udp"   # SIP
+      - "5060:5060"       # SIP TCP
+      - "5080:5080"       # sofia internal
+      - "8021:8021"       # Event Socket (ESL)
+    volumes:
+      - ./deploy/freeswitch/conf:/etc/freeswitch
+      - ./deploy/freeswitch/sounds:/usr/share/freeswitch/sounds
+    depends_on:
+      - app
+    environment:
+      - TZ=UTC
+      - FREESWITCH_ESL_PASSWORD=ClueCon
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge

@@ -10,16 +10,85 @@ services:
       - .:/app
     environment:
       - DATABASE_URL=sqlite:///./callcenter.db
-      # Add other environment variables as needed
-      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
-      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - ENABLE_TRACING=true
+      - OTLP_ENDPOINT=http://jaeger:4317
+      - PROMETHEUS_PUSHGATEWAY=http://pushgateway:9091
+      - PROMETHEUS_PUSH_JOB=ai_callcenter
+      # SIP/LiveKit bridge config
+      - ENABLE_FREESWITCH_BRIDGE=true
+      - FREESWITCH_HOST=freeswitch
+      - FREESWITCH_ESL_PORT=8021
+      - FREESWITCH_ESL_PASSWORD=ClueCon
+      - LIVEKIT_HOST=http://livekit:7880
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY:-devkey}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET:-secret}
       - AI_MODEL_API_KEY=${AI_MODEL_API_KEY}
+    depends_on:
+      - livekit
+      - freeswitch
 
-  # Add LiveKit server if needed for local testing
+  # LiveKit WebRTC SFU server
   livekit:
     image: livekit/livekit-server
     ports:
       - "7880:7880"
+      - "7881:7881/udp" # WebRTC traffic
+      - "7882:7882/udp" # WebRTC traffic
     environment:
       LIVEKIT_KEYS: "devkey: secret"
       LIVEKIT_PORT: "7880"
+      LIVEKIT_RTMP_PORT: "1935"
+      LIVEKIT_UDP_PORT: "7882"
+      LIVEKIT_NODE_IP: "0.0.0.0"
+    volumes:
+      - ./livekit-data:/data
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:v2.44.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    
+  # Prometheus Pushgateway
+  pushgateway:
+    image: prom/pushgateway:v1.6.0
+    ports:
+      - "9091:9091"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:9.5.2
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+
+  # Jaeger for tracing
+  jaeger:
+    image: jaegertracing/all-in-one:1.45
+    ports:
+      - "6831:6831/udp"  # Jaeger agent
+      - "6832:6832/udp"  # Jaeger agent
+      - "5778:5778"      # Jaeger agent configs
+      - "16686:16686"    # UI
+      - "4317:4317"      # OTLP gRPC
+      - "4318:4318"      # OTLP HTTP
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
+volumes:
+  prometheus-data:
+  grafana-data:

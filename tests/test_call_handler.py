@@ -9,7 +9,7 @@ def call_handler():
         handler = CallHandler()
         # Initialize conversation history with system prompt
         assert len(handler.conversation_history) == 1
-        assert handler.conversation_history[0]['role'] == 'system'
+        assert handler.conversation_history[0].role == 'system'
         return handler
 
 @pytest.fixture
@@ -41,10 +41,10 @@ async def test_process_call_success(call_handler, mock_audio_data):
                 
                 # Verify conversation history was updated correctly
                 assert len(call_handler.conversation_history) == 3  # system + user + assistant
-                assert call_handler.conversation_history[-2]['role'] == 'user'
-                assert call_handler.conversation_history[-2]['content'] == "Hello, I need help with my internet connection"
-                assert call_handler.conversation_history[-1]['role'] == 'assistant'
-                assert call_handler.conversation_history[-1]['content'] == response['message']
+                assert call_handler.conversation_history[-2].role == 'user'
+                assert call_handler.conversation_history[-2].content == "Hello, I need help with my internet connection"
+                assert call_handler.conversation_history[-1].role == 'assistant'
+                assert call_handler.conversation_history[-1].content == response['message']
 
 @pytest.mark.asyncio
 async def test_process_call_speech_recognition_failure(call_handler, mock_audio_data):
@@ -73,9 +73,11 @@ async def test_get_ai_response(call_handler):
         
         assert response == test_response
         # Verify OpenAI API was called with correct parameters
+        # Only the system message is sent to the API before the assistant message is appended
+        expected_messages = [msg.dict() for msg in call_handler.conversation_history[:-1]]
         mock_create.assert_called_once_with(
             model="gpt-3.5-turbo",
-            messages=call_handler.conversation_history,
+            messages=expected_messages,
             max_tokens=150,
             temperature=0.7
         )
@@ -90,7 +92,7 @@ async def test_process_call_ai_error(call_handler, mock_audio_data):
             response = await call_handler.process_call(mock_audio_data)
             
             assert response['status'] == 'error'
-            assert 'API Error' in response['message']
+            assert 'Error getting AI response' in response['message']
             assert response['audio_path'] is None
 
 @pytest.mark.asyncio

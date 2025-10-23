@@ -1,0 +1,4 @@
+<configuration name="vars" description="Global variables">
+  <X-PRE-PROCESS cmd="set" data="domain_name=localhost"/>
+  <X-PRE-PROCESS cmd="set" data="internal_sip_port=5060"/>
+</configuration>

@@ -1,0 +1,13 @@
+<configuration name="modules.conf" description="Core Modules">
+  <modules>
+    <!-- enable event socket for ESL-based integrations -->
+    <load module="mod_event_socket"/>
+    <!-- enable mod_commands and system for executing curl -->
+    <load module="mod_commands"/>
+    <load module="mod_xml_curl"/>
+    <!-- other useful modules -->
+    <load module="mod_sofia"/>
+    <load module="mod_dptools"/>
+    <load module="mod_conference"/>
+  </modules>
+</configuration>

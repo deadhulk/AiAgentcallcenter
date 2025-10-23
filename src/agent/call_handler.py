@@ -1,26 +1,29 @@
-import openai
-from typing import Dict, Any
+from typing import Dict, Any, List
 import os
 from .speech_recognition import SpeechRecognitionEngine
 from .tts_engine import TTSEngine
+from .adapters import get_llm_adapter
+from .openai_adapters import ChatMessage
 
 class CallHandler:
     def __init__(self):
         self.speech_recognition = SpeechRecognitionEngine()
         self.tts_engine = TTSEngine()
-        openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.llm = get_llm_adapter()
         
         # Initial system prompt to set the AI's role
-        self.conversation_history = [{
-            "role": "system",
-            "content": """You are a professional call center agent for a telecommunications company. 
-            You are helpful, polite, and efficient. You can handle customer inquiries about:
-            - Technical support
-            - Billing issues
-            - Service upgrades
-            - Network problems
-            Always maintain a professional tone and follow proper call center protocols."""
-        }]
+        self.conversation_history: List[ChatMessage] = [
+            ChatMessage(
+                role="system",
+                content="""You are a professional call center agent for a telecommunications company. 
+                You are helpful, polite, and efficient. You can handle customer inquiries about:
+                - Technical support
+                - Billing issues
+                - Service upgrades
+                - Network problems
+                Always maintain a professional tone and follow proper call center protocols."""
+            )
+        ]
 
     async def process_call(self, audio_data: Any) -> Dict[str, str]:
         """
@@ -36,10 +39,9 @@ class CallHandler:
             }
 
         # Add user message to conversation history
-        self.conversation_history.append({
-            "role": "user",
-            "content": user_text
-        })
+        self.conversation_history.append(
+            ChatMessage(role="user", content=user_text)
+        )
 
         # Get AI response
         try:
@@ -62,24 +64,23 @@ class CallHandler:
 
     async def get_ai_response(self) -> str:
         """
-        Get response from OpenAI API
+        Get response from LLM adapter
         """
         try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
+            response = self.llm.chat_completion(
                 messages=self.conversation_history,
                 max_tokens=150,
                 temperature=0.7
             )
             
-            ai_message = response.choices[0].message['content'].strip()
+            if response is None:
+                raise Exception("Failed to get response from LLM")
             
             # Add AI response to conversation history
-            self.conversation_history.append({
-                "role": "assistant",
-                "content": ai_message
-            })
+            self.conversation_history.append(
+                ChatMessage(role="assistant", content=response)
+            )
             
-            return ai_message
+            return response
         except Exception as e:
             raise Exception(f"Error getting AI response: {str(e)}")
