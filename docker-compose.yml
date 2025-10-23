@@ -1,0 +1,25 @@
+# Docker Compose configuration for local deployment
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DATABASE_URL=sqlite:///./callcenter.db
+      # Add other environment variables as needed
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - AI_MODEL_API_KEY=${AI_MODEL_API_KEY}
+
+  # Add LiveKit server if needed for local testing
+  livekit:
+    image: livekit/livekit-server
+    ports:
+      - "7880:7880"
+    environment:
+      LIVEKIT_KEYS: "devkey: secret"
+      LIVEKIT_PORT: "7880"

@@ -1,0 +1,5 @@
+This is a sample transcript for speech recognition testing.
+
+Hello, I need help with my order.
+What are your working hours?
+Thank you for your assistance.
