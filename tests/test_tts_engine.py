@@ -7,11 +7,12 @@ import os
 def tts_engine():
     return TTSEngine()
 
-def test_text_to_speech_generation(tts_engine):
+def test_text_to_speech_generation():
     test_text = "Hello, this is a test message"
-    
     with patch.dict('os.environ', {'TTS_PROVIDER': 'gtts'}):
         with patch('gtts.gTTS') as mock_gtts:
+            from src.agent.tts_engine import TTSEngine
+            tts_engine = TTSEngine()
             # Mock the gTTS instance
             mock_tts_instance = MagicMock()
             mock_gtts.return_value = mock_tts_instance

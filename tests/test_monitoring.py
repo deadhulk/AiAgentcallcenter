@@ -1,34 +1,20 @@
-import types
-
-def reset_prometheus_metrics():
-    # Reset all metric values to zero for a clean test state
-    for metric in [
-        monitoring.ACTIVE_CALLS,
-        monitoring.CALLS_TOTAL,
-        monitoring.ERRORS_TOTAL,
-        monitoring.EVENTS_TOTAL,
-        monitoring.QUEUE_SIZE,
-        monitoring.SPEECH_PROCESSING_SECONDS
-    ]:
-        if hasattr(metric, '_metrics'):  # Gauge, Counter
-            metric._metrics.clear()
-        if hasattr(metric, '_value'):  # Gauge
-            if hasattr(metric._value, 'clear'):
-                metric._value.clear()
-        if hasattr(metric, '_sum'):
-            if hasattr(metric._sum, 'clear'):
-                metric._sum.clear()
-        if hasattr(metric, '_count'):
-            if hasattr(metric._count, 'clear'):
-                metric._count.clear()
-
 import pytest
+from importlib import reload
+from src.ops import monitoring
+from prometheus_client import REGISTRY, CollectorRegistry, Histogram
 from unittest.mock import patch, MagicMock
 from fastapi import FastAPI
-from src.ops import monitoring
+
+@pytest.fixture(autouse=True)
+def reset_metrics():
+    # Unregister all collectors from the default registry.
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        REGISTRY.unregister(collector)
+    # Reload the monitoring module to re-register the metrics.
+    reload(monitoring)
 
 def test_init_monitoring_prometheus():
-    reset_prometheus_metrics()
     app = FastAPI()
     monitoring.init_monitoring(app)
 
@@ -49,7 +35,6 @@ def test_init_monitoring_prometheus():
         assert any(s.value == 0 and s.labels.get('queue') == queue for s in queue_samples if s.name == 'queue_size')
 
 def test_metrics_tracking():
-    reset_prometheus_metrics()
     # Test call tracking
     monitoring.track_call_start()
     active_calls_sample = list(monitoring.ACTIVE_CALLS.collect())[0].samples
@@ -74,7 +59,6 @@ def test_metrics_tracking():
     assert any(s.value == 1 and s.labels.get('type') == 'test_event' for s in events_total_sample if s.name == 'events_total')
 
 def test_queue_size_tracking():
-    reset_prometheus_metrics()
     monitoring.update_queue_size("test_queue", 5)
     queue_samples = list(monitoring.QUEUE_SIZE.collect())[0].samples
     assert any(s.value == 5 and s.labels.get('queue') == 'test_queue' for s in queue_samples if s.name == 'queue_size')
@@ -84,7 +68,6 @@ def test_queue_size_tracking():
     assert any(s.value == 3 and s.labels.get('queue') == 'test_queue' for s in queue_samples if s.name == 'queue_size')
 
 def test_speech_processing_tracking():
-    reset_prometheus_metrics()
     monitoring.track_speech_processing(1.5)
     # Use .collect() to get histogram sum and count
     hist_samples = list(monitoring.SPEECH_PROCESSING_SECONDS.collect())[0].samples
