@@ -160,3 +160,57 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 3. Commit your changes
 4. Push to the branch
 5. Create a new Pull Request
+
+## System Flow Overview
+
+The AI Call Center Agent system automates customer service calls using a modular, event-driven architecture. Here’s the end-to-end flow:
+
+1. **Call Initiation**
+   - A customer call is received (via SIP/LiveKit or API).
+   - `/api/call/start` endpoint is called, creating a new session and returning a session ID.
+   - The system initializes metrics and registers the call in the active session store.
+
+2. **Speech Recognition & Processing**
+   - Audio from the customer is streamed or uploaded to `/api/call/process`.
+   - The system uses the configured Speech-to-Text (STT) adapter (e.g., Google, AWS, Whisper, or mock) to transcribe the audio.
+   - Transcribed text is logged and added to the conversation history.
+
+3. **AI Response Generation**
+   - The transcribed text is sent to the selected LLM (OpenAI, AWS, or mock) for intent detection and response generation.
+   - The AI-generated response is logged and appended to the conversation history.
+
+4. **Text-to-Speech (TTS) Synthesis**
+   - The AI response is converted to speech using the configured TTS adapter (gTTS, OpenAI, AWS Polly, or mock).
+   - The resulting audio is returned to the caller or sent to the SIP/LiveKit bridge for playback.
+
+5. **Event Emission & Webhooks**
+   - All major call events (created, answered, ended, etc.) are mapped to internal event schemas.
+   - Events are dispatched to registered workflow endpoints (e.g., n8n, Zapier) via webhooks for further automation.
+   - CRM integration is triggered for call logging and analytics.
+
+6. **Call Termination**
+   - `/api/call/end` endpoint is called to end the session.
+   - Final call data (duration, transcript, etc.) is logged to the CRM.
+   - Metrics are updated and the session is cleaned up.
+
+7. **Monitoring & Observability**
+   - Prometheus metrics are tracked for all major operations (active calls, queue size, errors, durations).
+   - OpenTelemetry spans are created for distributed tracing.
+   - Logs are structured and can be shipped to observability platforms.
+
+---
+
+**Key Components:**
+- `src/ops/orchestration.py`: Orchestrates event flow, webhook dispatch, and CRM integration.
+- `src/agent/call_handler.py`: Manages the main call loop and conversation state.
+- `src/agent/speech_recognition.py` & `src/agent/tts_engine.py`: Handle STT and TTS operations.
+- `src/api/routes.py`: Exposes FastAPI endpoints for call control and processing.
+- `src/ops/monitoring.py`: Handles metrics, tracing, and logging.
+
+**Extensibility:**
+- Easily add new adapters for STT, TTS, or LLM by implementing the adapter interface and updating the factory methods.
+- Register new workflow endpoints for automation via the orchestration API.
+
+---
+
+For a detailed code-level flow, see the docstrings in `src/ops/orchestration.py` and the test suite in `tests/`.
